@@ -1,9 +1,35 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style
+        name="AppTheme"
+        parent="android:style/Theme.Material.Light.NoActionBar">
+
+        <!-- Font -->
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#6750A4</item>
+
+        <!-- Colore principale Spiritelli -->
+        <item name="android:colorAccent">#7C4DFF</item>
+
+        <!-- Sfondo -->
+        <item name="android:windowBackground">#F8F7FC</item>
+
+        <!-- Barra di stato -->
+        <item name="android:statusBarColor">#F8F7FC</item>
+        <item name="android:navigationBarColor">#F8F7FC</item>
+
+        <!-- Colore delle icone della barra -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+
+        <!-- Colore testo -->
+        <item name="android:textColorPrimary">#202124</item>
+        <item name="android:textColorSecondary">#6B6B73</item>
+
+        <!-- Animazioni -->
+        <item name="android:windowContentTransitions">true</item>
+
     </style>
 
 </resources>
