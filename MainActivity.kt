@@ -1,353 +1,798 @@
-package com.example.collezioni
+package com.spiritelli.app
 
+import android.app.Activity
+import android.app.AlertDialog
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import android.view.Gravity
+import android.view.View
+import android.widget.*
+import java.util.Locale
 
-private val ComponentActivity.dataStore by preferencesDataStore("collections")
+class MainActivity : Activity() {
 
-@Serializable
-data class Item(val id: Long, val name: String, val checked: Boolean = false)
+    private val spiritelli = mutableListOf<String>()
+    private lateinit var container: LinearLayout
+    private lateinit var search: EditText
 
-@Serializable
-data class CollectionModel(
-    val id: Long,
-    val name: String,
-    val emoji: String = "📁",
-    val color: Long = 0xFF6750A4,
-    val items: List<Item> = emptyList()
-)
+    private val developerCode = "131013"
 
-class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { CollezioniApp() }
-    }
-}
 
-@Composable
-fun CollezioniApp() {
-    val activity = androidx.compose.ui.platform.LocalContext.current as ComponentActivity
-    val scope = rememberCoroutineScope()
-    var collections by remember { mutableStateOf(emptyList<CollectionModel>()) }
-    var selectedId by remember { mutableStateOf<Long?>(null) }
-    var query by remember { mutableStateOf("") }
-    var dark by remember { mutableStateOf(false) }
-    var initialized by remember { mutableStateOf(false) }
+        loadData()
 
-    LaunchedEffect(Unit) {
-        val prefs = activity.dataStore.data.first()
-        val raw = prefs[stringPreferencesKey("data")]
-        collections = if (raw.isNullOrBlank()) defaultCollections()
-        else runCatching { Json.decodeFromString<List<CollectionModel>>(raw) }.getOrElse { defaultCollections() }
-        initialized = true
+        if (spiritelli.isEmpty()) {
+            spiritelli.add("Spiritello esempio")
+            saveData()
+        }
+
+        showHome()
     }
 
-    fun save(list: List<CollectionModel>) {
-        collections = list
-        scope.launch {
-            activity.dataStore.edit { it[stringPreferencesKey("data")] = Json.encodeToString(list) }
+    // =========================
+    // HOME
+    // =========================
+
+    private fun showHome() {
+
+        val root = createRoot()
+
+        // Header
+        val header = LinearLayout(this)
+        header.orientation = LinearLayout.VERTICAL
+        header.setPadding(0, 10, 0, 20)
+
+        val logo = TextView(this)
+        logo.text = "👻"
+        logo.textSize = 48f
+        logo.gravity = Gravity.CENTER
+
+        header.addView(logo)
+
+        val title = TextView(this)
+        title.text = "SPIRITELLI"
+        title.textSize = 30f
+        title.setTypeface(null, Typeface.BOLD)
+        title.setTextColor(Color.rgb(35, 35, 45))
+        title.gravity = Gravity.CENTER
+
+        header.addView(title)
+
+        val subtitle = TextView(this)
+        subtitle.text = "Scopri tutti gli Spiritelli"
+        subtitle.textSize = 15f
+        subtitle.setTextColor(Color.GRAY)
+        subtitle.gravity = Gravity.CENTER
+
+        header.addView(subtitle)
+
+        root.addView(header)
+
+        // Ricerca
+        search = EditText(this)
+        search.hint = "🔎  Cerca uno Spiritello..."
+        search.textSize = 16f
+        search.setSingleLine(true)
+        search.setPadding(35, 0, 35, 0)
+        search.background = roundedBackground(
+            Color.rgb(245, 245, 250),
+            30
+        )
+
+        root.addView(
+            search,
+            LinearLayout.LayoutParams(
+                -1,
+                60
+            )
+        )
+
+        space(root, 15)
+
+        // Contatore
+        val counter = TextView(this)
+        counter.text = "${spiritelli.size} Spiritelli"
+        counter.textSize = 15f
+        counter.setTextColor(Color.GRAY)
+
+        root.addView(counter)
+
+        space(root, 10)
+
+        // Lista
+        container = LinearLayout(this)
+        container.orientation = LinearLayout.VERTICAL
+
+        root.addView(container)
+
+        search.addTextChangedListener(
+            object : android.text.TextWatcher {
+
+                override fun beforeTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) {}
+
+                override fun onTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    before: Int,
+                    count: Int
+                ) {
+                    updateList(s.toString())
+                }
+
+                override fun afterTextChanged(
+                    s: android.text.Editable?
+                ) {}
+            }
+        )
+
+        updateList("")
+
+        // Developer
+        space(root, 20)
+
+        val developer = TextView(this)
+        developer.text = "⚙️  Modalità Developer"
+        developer.textSize = 13f
+        developer.gravity = Gravity.CENTER
+        developer.setTextColor(Color.GRAY)
+        developer.setPadding(0, 15, 0, 15)
+
+        developer.setOnClickListener {
+            askDeveloperCode()
+        }
+
+        root.addView(developer)
+
+        setContentView(root)
+    }
+
+    // =========================
+    // LISTA SPIRITELLI
+    // =========================
+
+    private fun updateList(query: String) {
+
+        container.removeAllViews()
+
+        val q = query.trim().lowercase(Locale.getDefault())
+
+        val filtered = spiritelli.filter {
+            q.isEmpty() ||
+                    it.lowercase(Locale.getDefault()).contains(q)
+        }
+
+        if (filtered.isEmpty()) {
+
+            val empty = TextView(this)
+            empty.text = "👻\n\nNessuno Spiritello trovato"
+            empty.textSize = 17f
+            empty.gravity = Gravity.CENTER
+            empty.setTextColor(Color.GRAY)
+            empty.setPadding(0, 50, 0, 50)
+
+            container.addView(empty)
+
+            return
+        }
+
+        for (name in filtered) {
+            addSpiritelloCard(name)
         }
     }
 
-    MaterialTheme(
-        colorScheme = if (dark) darkColorScheme() else lightColorScheme(
-            primary = Color(0xFF6750A4),
-            secondary = Color(0xFF006874),
-            surface = Color(0xFFF8F7FF)
+    private fun addSpiritelloCard(name: String) {
+
+        val card = LinearLayout(this)
+        card.orientation = LinearLayout.HORIZONTAL
+        card.gravity = Gravity.CENTER_VERTICAL
+        card.setPadding(25, 20, 20, 20)
+
+        card.background = roundedBackground(
+            Color.WHITE,
+            22
         )
+
+        card.elevation = 5f
+
+        val icon = TextView(this)
+        icon.text = "👻"
+        icon.textSize = 30f
+        icon.gravity = Gravity.CENTER
+
+        card.addView(
+            icon,
+            LinearLayout.LayoutParams(
+                65,
+                65
+            )
+        )
+
+        val textBox = LinearLayout(this)
+        textBox.orientation = LinearLayout.VERTICAL
+        textBox.setPadding(15, 0, 10, 0)
+
+        val title = TextView(this)
+        title.text = name
+        title.textSize = 19f
+        title.setTypeface(null, Typeface.BOLD)
+        title.setTextColor(Color.rgb(30, 30, 40))
+
+        textBox.addView(title)
+
+        val description = TextView(this)
+        description.text = "Tocca per visualizzare"
+        description.textSize = 13f
+        description.setTextColor(Color.GRAY)
+
+        textBox.addView(description)
+
+        card.addView(
+            textBox,
+            LinearLayout.LayoutParams(
+                0,
+                -2,
+                1f
+            )
+        )
+
+        val arrow = TextView(this)
+        arrow.text = "›"
+        arrow.textSize = 30f
+        arrow.setTextColor(Color.GRAY)
+
+        card.addView(arrow)
+
+        card.setOnClickListener {
+            showSpiritello(name)
+        }
+
+        val params = LinearLayout.LayoutParams(
+            -1,
+            -2
+        )
+
+        params.setMargins(0, 0, 0, 15)
+
+        container.addView(card, params)
+    }
+
+    // =========================
+    // DETTAGLIO
+    // =========================
+
+    private fun showSpiritello(name: String) {
+
+        val root = createRoot()
+
+        val back = TextView(this)
+        back.text = "‹  Indietro"
+        back.textSize = 16f
+        back.setTextColor(Color.rgb(80, 70, 180))
+        back.setPadding(0, 10, 0, 20)
+
+        back.setOnClickListener {
+            showHome()
+        }
+
+        root.addView(back)
+
+        val icon = TextView(this)
+        icon.text = "👻"
+        icon.textSize = 80f
+        icon.gravity = Gravity.CENTER
+
+        root.addView(icon)
+
+        val title = createTitle(name)
+        root.addView(title)
+
+        val info = TextView(this)
+        info.text = "Spiritello di Fortnite"
+        info.textSize = 16f
+        info.gravity = Gravity.CENTER
+        info.setTextColor(Color.GRAY)
+
+        root.addView(info)
+
+        setContentView(root)
+    }
+
+    // =========================
+    // DEVELOPER
+    // =========================
+
+    private fun askDeveloperCode() {
+
+        val input = EditText(this)
+        input.hint = "Codice Developer"
+        input.inputType =
+            android.text.InputType.TYPE_CLASS_NUMBER
+        input.setSingleLine(true)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("⚙️ Developer")
+            .setMessage("Inserisci il codice per accedere alla modalità Developer")
+            .setView(input)
+            .setNegativeButton("Annulla", null)
+            .setPositiveButton("Accedi", null)
+            .create()
+
+        dialog.setOnShowListener {
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener {
+
+                    if (input.text.toString() == developerCode) {
+                        dialog.dismiss()
+                        showDeveloper()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "Codice errato",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+        }
+
+        dialog.show()
+    }
+
+    private fun showDeveloper() {
+
+        val root = createRoot()
+
+        root.addView(
+            createTitle("⚙️ Developer")
+        )
+
+        val subtitle = TextView(this)
+        subtitle.text = "Gestisci gli Spiritelli"
+        subtitle.textSize = 15f
+        subtitle.setTextColor(Color.GRAY)
+        subtitle.gravity = Gravity.CENTER
+
+        root.addView(subtitle)
+
+        space(root, 20)
+
+        val add = createActionButton(
+            "＋  Aggiungi Spiritello"
+        )
+
+        add.setOnClickListener {
+            showAddSpiritello()
+        }
+
+        root.addView(add)
+
+        space(root, 10)
+
+        val manage = createActionButton(
+            "✏️  Gestisci Spiritelli"
+        )
+
+        manage.setOnClickListener {
+            showManageSpiritelli()
+        }
+
+        root.addView(manage)
+
+        space(root, 10)
+
+        val back = createActionButton(
+            "←  Torna all'app"
+        )
+
+        back.setOnClickListener {
+            showHome()
+        }
+
+        root.addView(back)
+
+        setContentView(root)
+    }
+
+    // =========================
+    // AGGIUNGI
+    // =========================
+
+    private fun showAddSpiritello() {
+
+        val root = createRoot()
+
+        root.addView(
+            createTitle("Nuovo Spiritello")
+        )
+
+        val input = EditText(this)
+        input.hint = "Nome dello Spiritello"
+        input.textSize = 17f
+        input.setSingleLine(true)
+
+        root.addView(input)
+
+        space(root, 15)
+
+        val save = createActionButton("✓  Salva")
+
+        save.setOnClickListener {
+
+            val name =
+                input.text.toString().trim()
+
+            if (name.isEmpty()) {
+                Toast.makeText(
+                    this,
+                    "Inserisci un nome",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            if (spiritelli.contains(name)) {
+                Toast.makeText(
+                    this,
+                    "Questo Spiritello esiste già",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            spiritelli.add(name)
+            saveData()
+
+            Toast.makeText(
+                this,
+                "Spiritello aggiunto!",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            showDeveloper()
+        }
+
+        root.addView(save)
+
+        space(root, 10)
+
+        val cancel = createActionButton(
+            "Annulla"
+        )
+
+        cancel.setOnClickListener {
+            showDeveloper()
+        }
+
+        root.addView(cancel)
+
+        setContentView(root)
+    }
+
+    // =========================
+    // GESTIONE
+    // =========================
+
+    private fun showManageSpiritelli() {
+
+        val root = createRoot()
+
+        root.addView(
+            createTitle("Gestisci Spiritelli")
+        )
+
+        for (name in spiritelli) {
+
+            val button =
+                createActionButton(
+                    "👻  $name"
+                )
+
+            button.setOnClickListener {
+                showEditSpiritello(name)
+            }
+
+            root.addView(button)
+
+            space(root, 8)
+        }
+
+        val back =
+            createActionButton("← Indietro")
+
+        back.setOnClickListener {
+            showDeveloper()
+        }
+
+        root.addView(back)
+
+        setContentView(root)
+    }
+
+    // =========================
+    // MODIFICA
+    // =========================
+
+    private fun showEditSpiritello(oldName: String) {
+
+        val root = createRoot()
+
+        root.addView(
+            createTitle("Modifica Spiritello")
+        )
+
+        val input = EditText(this)
+        input.setText(oldName)
+        input.textSize = 17f
+        input.setSingleLine(true)
+
+        root.addView(input)
+
+        space(root, 15)
+
+        val save =
+            createActionButton("✓  Salva modifiche")
+
+        save.setOnClickListener {
+
+            val newName =
+                input.text.toString().trim()
+
+            if (newName.isEmpty()) {
+                Toast.makeText(
+                    this,
+                    "Inserisci un nome",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            if (
+                newName != oldName &&
+                spiritelli.contains(newName)
+            ) {
+                Toast.makeText(
+                    this,
+                    "Questo nome esiste già",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            val index =
+                spiritelli.indexOf(oldName)
+
+            if (index >= 0) {
+                spiritelli[index] = newName
+            }
+
+            saveData()
+
+            showManageSpiritelli()
+        }
+
+        root.addView(save)
+
+        space(root, 10)
+
+        val delete =
+            createActionButton("🗑️  Elimina")
+
+        delete.setOnClickListener {
+
+            AlertDialog.Builder(this)
+                .setTitle("Eliminare Spiritello?")
+                .setMessage(
+                    "Vuoi eliminare \"$oldName\"?"
+                )
+                .setNegativeButton(
+                    "Annulla",
+                    null
+                )
+                .setPositiveButton(
+                    "Elimina"
+                ) { _, _ ->
+
+                    spiritelli.remove(oldName)
+
+                    saveData()
+
+                    showManageSpiritelli()
+                }
+                .show()
+        }
+
+        root.addView(delete)
+
+        space(root, 10)
+
+        val back =
+            createActionButton("← Indietro")
+
+        back.setOnClickListener {
+            showManageSpiritelli()
+        }
+
+        root.addView(back)
+
+        setContentView(root)
+    }
+
+    // =========================
+    // UI
+    // =========================
+
+    private fun createRoot(): LinearLayout {
+
+        val root = LinearLayout(this)
+
+        root.orientation =
+            LinearLayout.VERTICAL
+
+        root.setPadding(
+            35,
+            35,
+            35,
+            30
+        )
+
+        root.setBackgroundColor(
+            Color.rgb(248, 248, 252)
+        )
+
+        return root
+    }
+
+    private fun createTitle(
+        text: String
+    ): TextView {
+
+        val title = TextView(this)
+
+        title.text = text
+        title.textSize = 28f
+        title.setTypeface(
+            null,
+            Typeface.BOLD
+        )
+
+        title.setTextColor(
+            Color.rgb(30, 30, 40)
+        )
+
+        title.gravity =
+            Gravity.CENTER
+
+        title.setPadding(
+            0,
+            10,
+            0,
+            20
+        )
+
+        return title
+    }
+
+    private fun createActionButton(
+        text: String
+    ): Button {
+
+        val button = Button(this)
+
+        button.text = text
+        button.textSize = 16f
+        button.isAllCaps = false
+
+        button.setTextColor(
+            Color.rgb(35, 35, 45)
+        )
+
+        button.background =
+            roundedBackground(
+                Color.WHITE,
+                18
+            )
+
+        button.elevation = 3f
+
+        button.setPadding(
+            20,
+            5,
+            20,
+            5
+        )
+
+        button.layoutParams =
+            LinearLayout.LayoutParams(
+                -1,
+                60
+            )
+
+        return button
+    }
+
+    private fun roundedBackground(
+        color: Int,
+        radius: Int
+    ): GradientDrawable {
+
+        val drawable =
+            GradientDrawable()
+
+        drawable.setColor(color)
+
+        drawable.cornerRadius =
+            radius.toFloat()
+
+        drawable.setStroke(
+            1,
+            Color.rgb(235, 235, 240)
+        )
+
+        return drawable
+    }
+
+    private fun space(
+        root: LinearLayout,
+        height: Int
     ) {
-        if (!initialized) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        } else {
-            val selected = collections.firstOrNull { it.id == selectedId }
-            if (selected == null) {
-                Home(
-                    collections, query, { query = it }, dark, { dark = !dark },
-                    { selectedId = it },
-                    { name, emoji, color -> save(collections + CollectionModel(System.currentTimeMillis(), name, emoji, color)) },
-                    { id -> save(collections.filterNot { it.id == id }) }
-                )
-            } else {
-                Detail(
-                    selected,
-                    { selectedId = null },
-                    { itemId ->
-                        save(collections.map { c ->
-                            if (c.id == selected.id) c.copy(items = c.items.map { if (it.id == itemId) it.copy(checked = !it.checked) else it }) else c
-                        })
-                    },
-                    { name -> save(collections.map { c -> if (c.id == selected.id) c.copy(items = c.items + Item(System.currentTimeMillis(), name)) else c }) },
-                    { itemId -> save(collections.map { c -> if (c.id == selected.id) c.copy(items = c.items.filterNot { it.id == itemId }) else c }) },
-                    { save(collections.map { c -> if (c.id == selected.id) c.copy(items = c.items.filterNot { it.checked }) else c }) },
-                    { newItems -> save(collections.map { c -> if (c.id == selected.id) c.copy(items = newItems) else c }) },
-                    { name, emoji, color -> save(collections.map { c -> if (c.id == selected.id) c.copy(name = name, emoji = emoji, color = color) else c }) }
-                )
-            }
-        }
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun Home(
-    collections: List<CollectionModel>, query: String, onQuery: (String) -> Unit,
-    dark: Boolean, onDark: () -> Unit, onOpen: (Long) -> Unit,
-    onAdd: (String, String, Long) -> Unit, onDelete: (Long) -> Unit
-) {
-    var dialog by remember { mutableStateOf(false) }
-    var name by remember { mutableStateOf("") }
-    var emoji by remember { mutableStateOf("📁") }
-    var color by remember { mutableStateOf(0xFF6750A4L) }
-    var deleteId by remember { mutableStateOf<Long?>(null) }
-    val filtered = collections.filter { it.name.contains(query, ignoreCase = true) }
+        val view = View(this)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Column {
-                    Text("Le tue collezioni", fontWeight = FontWeight.Bold)
-                    Text("${collections.size} raccolte", style = MaterialTheme.typography.labelMedium)
-                }},
-                actions = {
-                    IconButton(onClick = onDark) { Icon(if (dark) Icons.Default.LightMode else Icons.Default.DarkMode, "Tema") }
-                }
+        root.addView(
+            view,
+            LinearLayout.LayoutParams(
+                1,
+                height
             )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { dialog = true }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Nuova") })
-        }
-    ) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize()) {
-            OutlinedTextField(
-                query, onQuery, Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                placeholder = { Text("Cerca una collezione…") }, leadingIcon = { Icon(Icons.Default.Search, null) },
-                singleLine = true, shape = RoundedCornerShape(18.dp)
-            )
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                itemsIndexed(filtered, key = { _, it -> it.id }) { _, c ->
-                    val done = c.items.count { it.checked }
-                    val progress = if (c.items.isEmpty()) 0f else done.toFloat() / c.items.size
-                    ElevatedCard(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)),
-                        shape = RoundedCornerShape(24.dp)
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().clickable { onOpen(c.id) }.padding(18.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier.size(58.dp).clip(RoundedCornerShape(18.dp)).background(Color(c.color).copy(.14f)), Alignment.Center) {
-                                Text(c.emoji, style = MaterialTheme.typography.headlineSmall)
-                            }
-                            Spacer(Modifier.width(14.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(c.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text("$done/${c.items.size} completati", style = MaterialTheme.typography.bodySmall)
-                                Spacer(Modifier.height(8.dp))
-                                LinearProgressIndicator({ progress }, Modifier.fillMaxWidth(), color = Color(c.color))
-                            }
-                            IconButton(onClick = { deleteId = c.id }) { Icon(Icons.Default.DeleteOutline, "Elimina") }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    if (dialog) {
-        AlertDialog(
-            onDismissRequest = { dialog = false },
-            title = { Text("Nuova collezione") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(name, { name = it }, label = { Text("Nome") }, singleLine = true)
-                    OutlinedTextField(emoji, { emoji = it }, label = { Text("Emoji") }, singleLine = true)
-                    Text("Colore", style = MaterialTheme.typography.labelLarge)
-                    ColorChoices(color) { color = it }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (name.isNotBlank()) { onAdd(name.trim(), emoji.ifBlank { "📁" }.take(2), color); name = ""; emoji = "📁"; color = 0xFF6750A4; dialog = false }
-                }) { Text("Crea") }
-            },
-            dismissButton = { TextButton(onClick = { dialog = false }) { Text("Annulla") } }
         )
     }
-    deleteId?.let { id ->
-        AlertDialog(
-            onDismissRequest = { deleteId = null },
-            title = { Text("Eliminare la collezione?") },
-            text = { Text("Tutti gli elementi al suo interno verranno rimossi.") },
-            confirmButton = { TextButton(onClick = { onDelete(id); deleteId = null }) { Text("Elimina") } },
-            dismissButton = { TextButton(onClick = { deleteId = null }) { Text("Annulla") } }
+
+    // =========================
+    // DATI
+    // =========================
+
+    private fun saveData() {
+
+        val preferences =
+            getSharedPreferences(
+                "spiritelli",
+                MODE_PRIVATE
+            )
+
+        preferences.edit()
+            .putStringSet(
+                "spiritelli",
+                spiritelli.toSet()
+            )
+            .apply()
+    }
+
+    private fun loadData() {
+
+        val preferences =
+            getSharedPreferences(
+                "spiritelli",
+                MODE_PRIVATE
+            )
+
+        val saved =
+            preferences.getStringSet(
+                "spiritelli",
+                emptySet()
+            )
+
+        spiritelli.clear()
+
+        spiritelli.addAll(
+            saved ?: emptySet()
         )
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun Detail(
-    collection: CollectionModel, onBack: () -> Unit, onToggle: (Long) -> Unit,
-    onAdd: (String) -> Unit, onDelete: (Long) -> Unit, onClearCompleted: () -> Unit,
-    onReorder: (List<Item>) -> Unit, onEdit: (String, String, Long) -> Unit
-) {
-    var addDialog by remember { mutableStateOf(false) }
-    var editDialog by remember { mutableStateOf(false) }
-    var name by remember { mutableStateOf("") }
-    var emoji by remember { mutableStateOf(collection.emoji) }
-    var color by remember { mutableStateOf(collection.color) }
-    var search by remember { mutableStateOf("") }
-    var sortDoneFirst by remember { mutableStateOf(false) }
-    var items by remember(collection.id, collection.items) { mutableStateOf(collection.items) }
-    val visibleItems = items.filter { it.name.contains(search, true) }
-        .let { list -> if (sortDoneFirst) list.sortedByDescending { it.checked } else list }
-
-    val done = collection.items.count { it.checked }
-    val progress = if (collection.items.isEmpty()) 0f else done.toFloat() / collection.items.size
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(collection.name, fontWeight = FontWeight.Bold) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Indietro") } },
-                actions = {
-                    IconButton(onClick = { sortDoneFirst = !sortDoneFirst }) { Icon(Icons.Default.Sort, "Ordina") }
-                    IconButton(onClick = { name = collection.name; emoji = collection.emoji; color = collection.color; editDialog = true }) { Icon(Icons.Default.Edit, "Modifica") }
-                    if (done > 0) IconButton(onClick = onClearCompleted) { Icon(Icons.Default.CleaningServices, "Pulisci") }
-                }
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { addDialog = true }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Aggiungi") })
-        }
-    ) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize()) {
-            Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(20.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(collection.emoji, style = MaterialTheme.typography.headlineMedium)
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text("$done di ${collection.items.size}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text(if (progress == 1f && collection.items.isNotEmpty()) "Completata 🎉" else "${(progress * 100).toInt()}% completato")
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    LinearProgressIndicator({ progress }, Modifier.fillMaxWidth(), color = Color(collection.color))
-                }
-            }
-            OutlinedTextField(
-                search, { search = it }, Modifier.fillMaxWidth().padding(16.dp),
-                placeholder = { Text("Cerca elementi…") }, leadingIcon = { Icon(Icons.Default.Search, null) },
-                singleLine = true, shape = RoundedCornerShape(18.dp)
-            )
-            val state = rememberLazyListState()
-            LazyColumn(state = state, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                itemsIndexed(visibleItems, key = { _, it -> it.id }) { index, item ->
-                    var offsetY by remember { mutableStateOf(0f) }
-                    Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                            .background(if (item.checked) MaterialTheme.colorScheme.surfaceVariant.copy(.45f) else Color.Transparent)
-                            .pointerInput(item.id) {
-                                detectDragGesturesAfterLongPress(
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        offsetY += dragAmount.y
-                                    },
-                                    onDragEnd = {
-                                        val from = items.indexOfFirst { it.id == item.id }
-                                        val to = (from + if (offsetY > 30) 1 else if (offsetY < -30) -1 else 0).coerceIn(0, items.lastIndex)
-                                        if (from != to) {
-                                            val mutable = items.toMutableList()
-                                            val moved = mutable.removeAt(from)
-                                            mutable.add(to, moved)
-                                            items = mutable
-                                            onReorder(mutable)
-                                        }
-                                        offsetY = 0f
-                                    }
-                                )
-                            }.clickable { onToggle(item.id) }.padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(item.checked, { onToggle(item.id) })
-                        Text(item.name, Modifier.weight(1f), fontWeight = if (item.checked) FontWeight.Normal else FontWeight.Medium)
-                        IconButton(onClick = { onDelete(item.id) }) { Icon(Icons.Default.DeleteOutline, "Elimina") }
-                    }
-                }
-            }
-        }
-    }
-    if (addDialog) {
-        AlertDialog(
-            onDismissRequest = { addDialog = false },
-            title = { Text("Aggiungi elemento") },
-            text = { OutlinedTextField(name, { name = it }, label = { Text("Nome") }, singleLine = true) },
-            confirmButton = { TextButton(onClick = { if (name.isNotBlank()) { onAdd(name.trim()); name = ""; addDialog = false } }) { Text("Aggiungi") } },
-            dismissButton = { TextButton(onClick = { addDialog = false }) { Text("Annulla") } }
-        )
-    }
-    if (editDialog) {
-        AlertDialog(
-            onDismissRequest = { editDialog = false },
-            title = { Text("Modifica collezione") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(name, { name = it }, label = { Text("Nome") }, singleLine = true)
-                    OutlinedTextField(emoji, { emoji = it }, label = { Text("Emoji") }, singleLine = true)
-                    ColorChoices(color) { color = it }
-                }
-            },
-            confirmButton = { TextButton(onClick = { if (name.isNotBlank()) { onEdit(name.trim(), emoji.ifBlank { "📁" }.take(2), color); editDialog = false } }) { Text("Salva") } },
-            dismissButton = { TextButton(onClick = { editDialog = false }) { Text("Annulla") } }
-        )
-    }
-}
-
-@Composable
-fun ColorChoices(selected: Long, onSelect: (Long) -> Unit) {
-    val colors = listOf(0xFF6750A4L, 0xFF006874L, 0xFF9C4146L, 0xFF7A5900L, 0xFF006E1CL, 0xFF3F5F90L)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        colors.forEach { c ->
-            Box(
-                Modifier.size(34.dp).clip(RoundedCornerShape(50)).background(Color(c)).clickable { onSelect(c) },
-                contentAlignment = Alignment.Center
-            ) { if (c == selected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp)) }
-        }
-    }
-}
-
-fun defaultCollections() = listOf(
-    CollectionModel(1, "Giochi da finire", "🎮", 0xFF6750A4, listOf(
-        Item(1, "Minecraft"), Item(2, "GTA V", true), Item(3, "Red Dead Redemption 2")
-    )),
-    CollectionModel(2, "Film da vedere", "🎬", 0xFF006874, listOf(
-        Item(4, "Interstellar", true), Item(5, "Inception"), Item(6, "Il Gladiatore")
-    ))
-)
