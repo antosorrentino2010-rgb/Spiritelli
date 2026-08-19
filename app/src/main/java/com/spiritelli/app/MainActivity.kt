@@ -4,6 +4,8 @@ import android.app.Activity
 import android.os.Bundle
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.widget.Button
 import android.widget.EditText
@@ -17,6 +19,7 @@ class MainActivity : Activity() {
     private val items = mutableMapOf<String, MutableList<String>>()
 
     private lateinit var collectionsContainer: LinearLayout
+    private lateinit var collectionSearch: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,9 +34,17 @@ class MainActivity : Activity() {
 
         root.addView(createTitle("Collezioni"))
 
+        collectionSearch = EditText(this)
+        collectionSearch.hint = "🔎 Cerca una collezione..."
+        collectionSearch.textSize = 17f
+        collectionSearch.setSingleLine(true)
+
+        root.addView(collectionSearch)
+
         val newCollection = Button(this)
         newCollection.text = "＋  Nuova collezione"
         newCollection.textSize = 18f
+
         newCollection.setOnClickListener {
             showCreateCollection()
         }
@@ -42,15 +53,55 @@ class MainActivity : Activity() {
 
         collectionsContainer = LinearLayout(this)
         collectionsContainer.orientation = LinearLayout.VERTICAL
-        collectionsContainer.setPadding(0, 25, 0, 0)
+        collectionsContainer.setPadding(0, 20, 0, 0)
 
         root.addView(collectionsContainer)
 
-        for (name in collections) {
-            addCollectionButton(name)
-        }
+        collectionSearch.addTextChangedListener(
+            object : TextWatcher {
+
+                override fun beforeTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) {}
+
+                override fun onTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    before: Int,
+                    count: Int
+                ) {
+                    updateCollectionList(s.toString())
+                }
+
+                override fun afterTextChanged(
+                    s: Editable?
+                ) {}
+            }
+        )
+
+        updateCollectionList("")
 
         setContentView(root)
+    }
+
+    private fun updateCollectionList(query: String) {
+
+        collectionsContainer.removeAllViews()
+
+        val search = query.trim().lowercase()
+
+        for (name in collections) {
+
+            if (
+                search.isEmpty() ||
+                name.lowercase().contains(search)
+            ) {
+                addCollectionButton(name)
+            }
+        }
     }
 
     private fun addCollectionButton(name: String) {
@@ -69,6 +120,212 @@ class MainActivity : Activity() {
         }
 
         collectionsContainer.addView(button)
+    }
+
+    private fun showCollection(name: String) {
+
+        val root = createRoot()
+
+        val back = Button(this)
+        back.text = "← Indietro"
+
+        back.setOnClickListener {
+            showHome()
+        }
+
+        root.addView(back)
+
+        root.addView(createTitle(name))
+
+        val itemSearch = EditText(this)
+        itemSearch.hint = "🔎 Cerca un elemento..."
+        itemSearch.textSize = 17f
+        itemSearch.setSingleLine(true)
+
+        root.addView(itemSearch)
+
+        val addItem = Button(this)
+        addItem.text = "＋  Aggiungi elemento"
+        addItem.textSize = 18f
+
+        addItem.setOnClickListener {
+            showAddItem(name)
+        }
+
+        root.addView(addItem)
+
+        val itemsContainer = LinearLayout(this)
+        itemsContainer.orientation = LinearLayout.VERTICAL
+        itemsContainer.setPadding(0, 20, 0, 0)
+
+        root.addView(itemsContainer)
+
+        fun updateItems(query: String) {
+
+            itemsContainer.removeAllViews()
+
+            val search = query.trim().lowercase()
+            val list = items[name] ?: mutableListOf()
+
+            for (item in list) {
+
+                if (
+                    search.isEmpty() ||
+                    item.lowercase().contains(search)
+                ) {
+
+                    val itemButton = Button(this)
+                    itemButton.text = "• $item"
+                    itemButton.textSize = 18f
+
+                    itemButton.setOnLongClickListener {
+                        showItemOptions(name, item)
+                        true
+                    }
+
+                    itemsContainer.addView(itemButton)
+                }
+            }
+        }
+
+        itemSearch.addTextChangedListener(
+            object : TextWatcher {
+
+                override fun beforeTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) {}
+
+                override fun onTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    before: Int,
+                    count: Int
+                ) {
+                    updateItems(s.toString())
+                }
+
+                override fun afterTextChanged(
+                    s: Editable?
+                ) {}
+            }
+        )
+
+        updateItems("")
+
+        setContentView(root)
+    }
+
+    private fun showCreateCollection() {
+
+        val root = createRoot()
+
+        root.addView(createTitle("Nuova collezione"))
+
+        val input = EditText(this)
+        input.hint = "Nome della collezione"
+        input.textSize = 18f
+
+        root.addView(input)
+
+        val save = Button(this)
+        save.text = "Salva"
+
+        save.setOnClickListener {
+
+            val name = input.text.toString().trim()
+
+            if (name.isEmpty()) {
+                Toast.makeText(
+                    this,
+                    "Inserisci un nome",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            if (collections.contains(name)) {
+                Toast.makeText(
+                    this,
+                    "Questa collezione esiste già",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            collections.add(name)
+            items[name] = mutableListOf()
+
+            saveData()
+            showHome()
+        }
+
+        root.addView(save)
+
+        val cancel = Button(this)
+        cancel.text = "Annulla"
+
+        cancel.setOnClickListener {
+            showHome()
+        }
+
+        root.addView(cancel)
+
+        setContentView(root)
+    }
+
+    private fun showAddItem(collectionName: String) {
+
+        val root = createRoot()
+
+        root.addView(createTitle("Nuovo elemento"))
+
+        val input = EditText(this)
+        input.hint = "Nome dell'elemento"
+        input.textSize = 18f
+
+        root.addView(input)
+
+        val save = Button(this)
+        save.text = "Salva"
+
+        save.setOnClickListener {
+
+            val name = input.text.toString().trim()
+
+            if (name.isEmpty()) {
+                Toast.makeText(
+                    this,
+                    "Inserisci un nome",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            val list = items[collectionName]
+                ?: mutableListOf()
+
+            list.add(name)
+            items[collectionName] = list
+
+            saveData()
+            showCollection(collectionName)
+        }
+
+        root.addView(save)
+
+        val cancel = Button(this)
+        cancel.text = "Annulla"
+
+        cancel.setOnClickListener {
+            showCollection(collectionName)
+        }
+
+        root.addView(cancel)
+
+        setContentView(root)
     }
 
     private fun showCollectionOptions(name: String) {
@@ -140,7 +397,10 @@ class MainActivity : Activity() {
                 return@setOnClickListener
             }
 
-            if (newName != oldName && collections.contains(newName)) {
+            if (
+                newName != oldName &&
+                collections.contains(newName)
+            ) {
                 Toast.makeText(
                     this,
                     "Questo nome esiste già",
@@ -170,159 +430,7 @@ class MainActivity : Activity() {
         cancel.text = "Annulla"
 
         cancel.setOnClickListener {
-            showCollection(oldName)
-        }
-
-        root.addView(cancel)
-
-        setContentView(root)
-    }
-
-    private fun showCreateCollection() {
-
-        val root = createRoot()
-
-        root.addView(createTitle("Nuova collezione"))
-
-        val input = EditText(this)
-        input.hint = "Nome della collezione"
-        input.textSize = 18f
-
-        root.addView(input)
-
-        val save = Button(this)
-        save.text = "Salva"
-
-        save.setOnClickListener {
-
-            val name = input.text.toString().trim()
-
-            if (name.isEmpty()) {
-                Toast.makeText(
-                    this,
-                    "Inserisci un nome",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-
-            if (collections.contains(name)) {
-                Toast.makeText(
-                    this,
-                    "Questa collezione esiste già",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-
-            collections.add(name)
-            items[name] = mutableListOf()
-
-            saveData()
             showHome()
-        }
-
-        root.addView(save)
-
-        val cancel = Button(this)
-        cancel.text = "Annulla"
-
-        cancel.setOnClickListener {
-            showHome()
-        }
-
-        root.addView(cancel)
-
-        setContentView(root)
-    }
-
-    private fun showCollection(name: String) {
-
-        val root = createRoot()
-
-        val back = Button(this)
-        back.text = "← Indietro"
-        back.setOnClickListener {
-            showHome()
-        }
-
-        root.addView(back)
-        root.addView(createTitle(name))
-
-        val addItem = Button(this)
-        addItem.text = "＋  Aggiungi elemento"
-        addItem.textSize = 18f
-
-        addItem.setOnClickListener {
-            showAddItem(name)
-        }
-
-        root.addView(addItem)
-
-        val list = items[name] ?: mutableListOf()
-
-        for (item in list) {
-
-            val itemButton = Button(this)
-            itemButton.text = "• $item"
-            itemButton.textSize = 18f
-
-            itemButton.setOnLongClickListener {
-                showItemOptions(name, item)
-                true
-            }
-
-            root.addView(itemButton)
-        }
-
-        setContentView(root)
-    }
-
-    private fun showAddItem(collectionName: String) {
-
-        val root = createRoot()
-
-        root.addView(createTitle("Nuovo elemento"))
-
-        val input = EditText(this)
-        input.hint = "Nome dell'elemento"
-        input.textSize = 18f
-
-        root.addView(input)
-
-        val save = Button(this)
-        save.text = "Salva"
-
-        save.setOnClickListener {
-
-            val name = input.text.toString().trim()
-
-            if (name.isEmpty()) {
-                Toast.makeText(
-                    this,
-                    "Inserisci un nome",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-
-            val list = items[collectionName]
-                ?: mutableListOf()
-
-            list.add(name)
-            items[collectionName] = list
-
-            saveData()
-            showCollection(collectionName)
-        }
-
-        root.addView(save)
-
-        val cancel = Button(this)
-        cancel.text = "Annulla"
-
-        cancel.setOnClickListener {
-            showCollection(collectionName)
         }
 
         root.addView(cancel)
@@ -407,6 +515,7 @@ class MainActivity : Activity() {
             val list = items[collectionName]
 
             if (list != null) {
+
                 val index = list.indexOf(oldItem)
 
                 if (index >= 0) {
@@ -496,6 +605,7 @@ class MainActivity : Activity() {
             )
 
         collections.clear()
+
         collections.addAll(
             savedCollections ?: emptySet()
         )
